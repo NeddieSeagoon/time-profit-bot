@@ -55,12 +55,25 @@ async def timer(ctx):
     await ctx.send('Timer stopped. Total time was: ' + timer_duration)
 
 @bot.command()
-async def pt(ctx, _type = 's', detailed = 'n', round_trip = 'n'):
+async def pt(ctx, ):
     '''Takes wallet inputs and times mission to determine profit/time.'''
-    await ctx.send('Please enter wallet amount as \'uec <amount>\'')
 
+    #checks
     def wallet_check(m):
         return m.content.startswith('uec ') and m.channel == ctx.channel and m.author == ctx.author
+
+    def generic_check(m):
+        return m.content == '.' and m.channel == ctx.channel and m.author == ctx.author
+    
+    #get starting wallet
+    await ctx.send('Please enter wallet amount as \'uec <amount>\'')
+    msg = await bot.wait_for('message', check = wallet_check)
+    wallet_start = msg.content
+    await ctx.send('Starting wallet stored. Enter \'.\' to start timer.')
+
+    msg = await bot.wait_for('message', check = generic_check)
+    timer_start = msg.created_at
+
 
 
 
