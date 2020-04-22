@@ -3,6 +3,7 @@ from discord.ext import commands
 from time import perf_counter
 import datetime
 import koios_discord_token as ktoken
+import regex as re
 
 from string import Template
 
@@ -55,24 +56,75 @@ async def timer(ctx):
     await ctx.send('Timer stopped. Total time was: ' + timer_duration)
 
 @bot.command()
-async def pt(ctx, ):
+async def pt(ctx, round_trip = 'n'):
     '''Takes wallet inputs and times mission to determine profit/time.'''
 
     #checks
     def wallet_check(m):
         return m.content.startswith('uec ') and m.channel == ctx.channel and m.author == ctx.author
 
-    def generic_check(m):
+    def dot_check(m):
         return m.content == '.' and m.channel == ctx.channel and m.author == ctx.author
     
     #get starting wallet
     await ctx.send('Please enter wallet amount as \'uec <amount>\'')
-    msg = await bot.wait_for('message', check = wallet_check)
-    wallet_start = msg.content
+    wallet_start_msg = await bot.wait_for('message', check = wallet_check)
+    wallet_start = wallet_start_msg.content
+    #strip non-numbers from message content
+    wallet_start = re.sub("[^0-9]", "", wallet_start)
+
+
     await ctx.send('Starting wallet stored. Enter \'.\' to start timer.')
 
-    msg = await bot.wait_for('message', check = generic_check)
+    #wait for command to start timer
+    msg = await bot.wait_for('message', check = dot_check)
+    #get timer start time
     timer_start = msg.created_at
+
+    
+    await ctx.send('Timer started. Enter \'.\' when mission objective is complete.')
+    #get mission completion time
+    obj_complete_msg = await bot.wait_for('message', check = dot_check)
+
+    #round trip
+    if round_trip == '-r':
+        await ctx.send('Mission objective time logged. Enter \'.\' when back at start.')
+        #get timer stop time
+        end_rt_msg = await bot.wait_for('message', check = dot_check)
+        timer_stop = end_rt_msg.created_at
+
+    #one-way trip
+    else:
+        #set timer_stop to objective completion time
+        timer_stop = obj_complete_msg.created_at
+
+    
+    duration = timer_stop - timer_start
+
+    #get timedelta in seconds for profit-per-minute calculation
+    duration_seconds = duration.total_seconds()
+
+    #convert timedelta into pretty string
+    duration = strfdelta(duration,'%H:%M:%S')
+
+    await ctx.send('Timer stopped. Total time was: ' + str(duration) + '. Enter new wallet amount as \'uec <amount>\'')
+
+    #get new wallet amount
+    wallet_stop_msg = await bot.wait_for('message', check = wallet_check)
+    wallet_stop = wallet_stop_msg.content
+
+    #strip non-numbers from message contents
+    wallet_stop = re.sub("[^0-9]", "", wallet_stop)
+
+    profit = int(wallet_stop) - int(wallet_start)
+
+    profit_per_minute = profit / (duration_seconds / 60)
+    profit_per_minute = profit_per_minute // 1
+    
+    await ctx.send('Total profit was: ' + str(profit) + '. \n Profit per minute was: ' + str(profit_per_minute) + '.')
+    
+
+    
 
 
 
